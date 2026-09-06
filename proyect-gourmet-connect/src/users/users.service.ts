@@ -84,7 +84,49 @@ export class UsersService {
   ): Promise<User> {
     const user = await this.findOne(id);
 
-    Object.assign(user, updateUserDto);
+    if (
+      updateUserDto.username !== undefined ||
+      updateUserDto.email !== undefined
+    ) {
+      const existingUser = await this.userRepository.findOne({
+        where: [
+          { username: updateUserDto.username },
+          { email: updateUserDto.email },
+        ],
+      });
+
+      if (existingUser && existingUser.id !== id) {
+        throw new ConflictException(
+          'El usuario o correo electrónico ya está registrado',
+        );
+      }
+    }
+
+    if (updateUserDto.username !== undefined) {
+      user.username = updateUserDto.username;
+    }
+
+    if (updateUserDto.email !== undefined) {
+      user.email = updateUserDto.email;
+    }
+
+    if (updateUserDto.password !== undefined) {
+      user.password = updateUserDto.password;
+    }
+
+    if (updateUserDto.roleId !== undefined) {
+      const role = await this.roleRepository.findOne({
+        where: { id: updateUserDto.roleId },
+      });
+
+      if (!role) {
+        throw new NotFoundException(
+          `Rol con ID ${updateUserDto.roleId} no encontrado`,
+        );
+      }
+
+      user.role = role;
+    }
 
     return this.userRepository.save(user);
   }
