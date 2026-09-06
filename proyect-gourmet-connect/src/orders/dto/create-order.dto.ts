@@ -1,7 +1,6 @@
 import {
   IsArray,
   IsInt,
-  IsNumber,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -15,10 +14,6 @@ export class CreateOrderDetailDto {
   @IsInt()
   @Min(1)
   quantity!: number;
-
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  unitPrice!: number;
 }
 
 export class CreateOrderDto {

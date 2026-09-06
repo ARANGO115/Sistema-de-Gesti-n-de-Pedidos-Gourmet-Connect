@@ -2,9 +2,12 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+
+import { OrderDetail } from './order-detail.entity';
 
 export enum OrderStatus {
   PENDIENTE = 'PENDIENTE',
@@ -43,4 +46,7 @@ export class Order {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @OneToMany(() => OrderDetail, (detail) => detail.order)
+  details!: OrderDetail[];
 }

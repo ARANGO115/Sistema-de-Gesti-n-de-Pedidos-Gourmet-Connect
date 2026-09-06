@@ -3,113 +3,146 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderDetail } from './entities/order-detail.entity';
+import { Product } from 'src/products/entities/product.entity/product.entity';
 
 @Injectable()
 export class OrdersService {
-  private orders: Order[] = [];
-  private orderDetails: OrderDetail[] = [];
+  constructor(
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
 
-  private nextOrderId = 1;
-  private nextOrderDetailId = 1;
+    @InjectRepository(OrderDetail)
+    private readonly orderDetailRepository: Repository<OrderDetail>,
 
-  create(createOrderDto: CreateOrderDto) {
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
+  ) {}
+
+  async create(createOrderDto: CreateOrderDto) {
     if (!createOrderDto.details || createOrderDto.details.length === 0) {
       throw new BadRequestException(
         'El pedido debe contener al menos un producto',
       );
     }
 
-    const order = new Order();
+    const order = this.orderRepository.create({
+      userId: createOrderDto.userId,
+      status: OrderStatus.PENDIENTE,
+      total: 0,
+    });
 
-    order.id = this.nextOrderId++;
-    order.userId = createOrderDto.userId;
-    order.status = OrderStatus.PENDIENTE;
-    order.total = 0;
-    order.createdAt = new Date();
-    order.updatedAt = new Date();
+    await this.orderRepository.save(order);
 
     let total = 0;
+    const details: OrderDetail[] = [];
 
     for (const detailDto of createOrderDto.details) {
-      const detail = new OrderDetail();
+      const product = await this.productRepository.findOne({
+        where: { id: detailDto.productId },
+      });
 
-      detail.id = this.nextOrderDetailId++;
-      detail.orderId = order.id;
-      detail.productId = detailDto.productId;
-      detail.quantity = detailDto.quantity;
-      detail.unitPrice = detailDto.unitPrice;
-      detail.subtotal = detailDto.quantity * detailDto.unitPrice;
+      if (!product) {
+        throw new NotFoundException(
+          `Producto con ID ${detailDto.productId} no encontrado`,
+        );
+      }
 
-      total += detail.subtotal;
+      if (!product.isAvailable) {
+        throw new BadRequestException(
+          `El producto "${product.name}" no está disponible`,
+        );
+      }
 
-      this.orderDetails.push(detail);
+      if (product.stock < detailDto.quantity) {
+        throw new BadRequestException(
+          `Stock insuficiente para el producto "${product.name}"`,
+        );
+      }
+
+      const unitPrice = Number(product.price);
+      const subtotal = detailDto.quantity * unitPrice;
+
+      const detail = this.orderDetailRepository.create({
+        order,
+        product,
+        quantity: detailDto.quantity,
+        unitPrice,
+        subtotal,
+      });
+
+      total += subtotal;
+      details.push(detail);
     }
 
+    await this.orderDetailRepository.save(details);
+
     order.total = total;
+    await this.orderRepository.save(order);
 
-    this.orders.push(order);
-
-    return {
-      ...order,
-      details: this.orderDetails.filter(
-        (detail) => detail.orderId === order.id,
-      ),
-    };
+    return this.findOne(order.id);
   }
 
-  findAll() {
-    return this.orders.map((order) => ({
-      ...order,
-      details: this.orderDetails.filter(
-        (detail) => detail.orderId === order.id,
-      ),
-    }));
+  async findAll() {
+    return this.orderRepository.find({
+      relations: {
+        details: {
+          product: true,
+        },
+      },
+    });
   }
 
-  findOne(id: number) {
-    const order = this.orders.find((order) => order.id === id);
+  async findOne(id: number) {
+    const order = await this.orderRepository.findOne({
+      where: { id },
+      relations: {
+        details: {
+          product: true,
+        },
+      },
+    });
 
     if (!order) {
       throw new NotFoundException(`Pedido con ID ${id} no encontrado`);
     }
 
-    return {
-      ...order,
-      details: this.orderDetails.filter(
-        (detail) => detail.orderId === order.id,
-      ),
-    };
+    return order;
   }
 
-  updateStatus(id: number, updateOrderStatusDto: UpdateOrderStatusDto) {
-    const order = this.orders.find((order) => order.id === id);
+  async updateStatus(
+    id: number,
+    updateOrderStatusDto: UpdateOrderStatusDto,
+  ) {
+    const order = await this.orderRepository.findOne({
+      where: { id },
+    });
 
     if (!order) {
       throw new NotFoundException(`Pedido con ID ${id} no encontrado`);
     }
 
     order.status = updateOrderStatusDto.status;
-    order.updatedAt = new Date();
 
-    return order;
+    return this.orderRepository.save(order);
   }
 
-  remove(id: number) {
-    const orderIndex = this.orders.findIndex((order) => order.id === id);
+  async remove(id: number) {
+    const order = await this.orderRepository.findOne({
+      where: { id },
+    });
 
-    if (orderIndex === -1) {
+    if (!order) {
       throw new NotFoundException(`Pedido con ID ${id} no encontrado`);
     }
 
-    this.orders.splice(orderIndex, 1);
-
-    this.orderDetails = this.orderDetails.filter(
-      (detail) => detail.orderId !== id,
-    );
+    await this.orderRepository.remove(order);
 
     return {
       message: `Pedido ${id} eliminado correctamente`,
