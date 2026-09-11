@@ -25,9 +25,7 @@ describe('CategoriesController', () => {
       ],
     }).compile();
 
-    controller = module.get<CategoriesController>(
-      CategoriesController,
-    );
+    controller = module.get<CategoriesController>(CategoriesController);
 
     jest.clearAllMocks();
   });

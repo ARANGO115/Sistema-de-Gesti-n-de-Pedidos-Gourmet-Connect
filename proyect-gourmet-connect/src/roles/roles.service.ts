@@ -21,9 +21,7 @@ export class RolesService {
     });
 
     if (existingRole) {
-      throw new ConflictException(
-        `El rol "${name}" ya existe`,
-      );
+      throw new ConflictException(`El rol "${name}" ya existe`);
     }
 
     const role = this.roleRepository.create({
@@ -44,19 +42,13 @@ export class RolesService {
     });
 
     if (!role) {
-      throw new NotFoundException(
-        `Rol con ID ${id} no encontrado`,
-      );
+      throw new NotFoundException(`Rol con ID ${id} no encontrado`);
     }
 
     return role;
   }
 
-  async update(
-    id: number,
-    name?: string,
-    description?: string,
-  ): Promise<Role> {
+  async update(id: number, name?: string, description?: string): Promise<Role> {
     const role = await this.findOne(id);
 
     if (name && name !== role.name) {
@@ -65,9 +57,7 @@ export class RolesService {
       });
 
       if (existingRole) {
-        throw new ConflictException(
-          `El rol "${name}" ya existe`,
-        );
+        throw new ConflictException(`El rol "${name}" ya existe`);
       }
     }
 

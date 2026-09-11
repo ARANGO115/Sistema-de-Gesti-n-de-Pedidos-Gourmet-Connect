@@ -22,38 +22,38 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-  const existingUser = await this.userRepository.findOne({
-    where: [
-      { username: createUserDto.username },
-      { email: createUserDto.email },
-    ],
-  });
+    const existingUser = await this.userRepository.findOne({
+      where: [
+        { username: createUserDto.username },
+        { email: createUserDto.email },
+      ],
+    });
 
-  if (existingUser) {
-    throw new ConflictException(
-      'El usuario o correo electrónico ya está registrado',
-    );
+    if (existingUser) {
+      throw new ConflictException(
+        'El usuario o correo electrónico ya está registrado',
+      );
+    }
+
+    const role = await this.roleRepository.findOne({
+      where: { id: createUserDto.roleId },
+    });
+
+    if (!role) {
+      throw new NotFoundException(
+        `Rol con ID ${createUserDto.roleId} no encontrado`,
+      );
+    }
+
+    const user = this.userRepository.create({
+      username: createUserDto.username,
+      email: createUserDto.email,
+      password: createUserDto.password,
+      role: role,
+    });
+
+    return this.userRepository.save(user);
   }
-
-  const role = await this.roleRepository.findOne({
-    where: { id: createUserDto.roleId },
-  });
-
-  if (!role) {
-    throw new NotFoundException(
-      `Rol con ID ${createUserDto.roleId} no encontrado`,
-    );
-  }
-
-  const user = this.userRepository.create({
-    username: createUserDto.username,
-    email: createUserDto.email,
-    password: createUserDto.password,
-    role: role,
-  });
-
-  return this.userRepository.save(user);
-}
 
   async findAll(): Promise<User[]> {
     return this.userRepository.find({
@@ -78,10 +78,7 @@ export class UsersService {
     return user;
   }
 
-  async update(
-    id: number,
-    updateUserDto: UpdateUserDto,
-  ): Promise<User> {
+  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
 
     if (

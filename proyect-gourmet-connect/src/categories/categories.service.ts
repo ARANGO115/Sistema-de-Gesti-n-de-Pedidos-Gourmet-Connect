@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -39,9 +36,7 @@ export class CategoriesService {
     });
 
     if (!category) {
-      throw new NotFoundException(
-        `Category with ID ${id} not found`,
-      );
+      throw new NotFoundException(`Category with ID ${id} not found`);
     }
 
     return category;

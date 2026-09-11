@@ -116,10 +116,7 @@ export class OrdersService {
     return order;
   }
 
-  async updateStatus(
-    id: number,
-    updateOrderStatusDto: UpdateOrderStatusDto,
-  ) {
+  async updateStatus(id: number, updateOrderStatusDto: UpdateOrderStatusDto) {
     const order = await this.orderRepository.findOne({
       where: { id },
     });
